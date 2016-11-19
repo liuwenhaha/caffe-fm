@@ -403,6 +403,7 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional SlidingWindowParameter sliding_window_param = 202;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1201,6 +1202,13 @@ message SPPParameter {
     CUDNN = 2;
   }
   optional Engine engine = 6 [default = DEFAULT];
+}
+
+message SlidingWindowParameter {
+  required int32 window_h = 1;
+  required int32 window_w = 2;
+  optional int32 stride_h = 3 [default = 1];
+  optional int32 stride_w = 4 [default = 1];
 }
 
 // DEPRECATED: use LayerParameter.
