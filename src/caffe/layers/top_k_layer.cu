@@ -6,6 +6,7 @@
 namespace caffe {
 
 using std::sort;
+using std::max;
 
 template <typename Dtype>
 __global__ void TopKForward(const int nthreads, const Dtype* bottom_data,
@@ -25,12 +26,21 @@ void TopKLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   // top batch size
   k_ = bottom[2]->shape(0);
   // score data
-  sort_by_score.score_ = bottom[1]->mutable_cpu_data();
+  Dtype* v = bottom[1]->mutable_cpu_data();
+  int ssize = bottom[1]->count() / bottom[1]->shape(0);
+  max_buf_.resize(bottom[1]->shape(0));
+  for (int i = 0; i < bottom[1]->shape(0); ++i) {
+    max_buf_[i] = v[i * ssize];
+    for (int j = 1; j < ssize; ++j)
+        max_buf_[i] = max(max_buf_[i], v[i * ssize + j]);
+  }
+  sort_by_score.score_ = max_buf_;
   // buffer
-  ids_.Reshape(bottom[0]->shape(0), 1, 1, 1);
-  for (int i = 0; i < bottom[0]->shape(0); ++i)
-    ids_.mutable_cpu_data()[i] = i;
+  ids_.Reshape(bottom[1]->shape(0), 1, 1, 1);
   int *ids_cpu_data = ids_.mutable_cpu_data();
+  for (int i = 0; i < bottom[0]->shape(0); ++i)
+    ids_cpu_data[i] = i;
+
   // sort by score
   sort(ids_cpu_data, ids_cpu_data + bottom[0]->shape(0), sort_by_score);
   // choose first k_
