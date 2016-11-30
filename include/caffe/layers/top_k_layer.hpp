@@ -31,7 +31,7 @@ class TopKLayer : public Layer<Dtype> {
   protected:
     struct SortByScore {
       // closure
-      Dtype *score_;
+      vector<Dtype> score_;
       bool operator()(int x, int y) {
         return score_[x] > score_[y];
       }
@@ -46,6 +46,7 @@ class TopKLayer : public Layer<Dtype> {
         const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
     Blob<int> ids_;
+    vector<Dtype> max_buf_;
     int channels_;
     int height_;
     int width_;
