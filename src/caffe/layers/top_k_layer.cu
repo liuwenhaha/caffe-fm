@@ -29,10 +29,18 @@ void TopKLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* v = bottom[1]->mutable_cpu_data();
   int ssize = bottom[1]->count() / bottom[1]->shape(0);
   max_buf_.resize(bottom[1]->shape(0));
-  for (int i = 0; i < bottom[1]->shape(0); ++i) {
-    max_buf_[i] = v[i * ssize];
-    for (int j = 1; j < ssize; ++j)
-        max_buf_[i] = max(max_buf_[i], v[i * ssize + j]);
+  // objn
+  if (ssize == 1) {
+    for (int i = 0; i < bottom[1]->shape(0); ++i)
+        max_buf_[i] = v[i];
+  }
+  // cls (ignore background)
+  else {
+      for (int i = 0; i < bottom[1]->shape(0); ++i) {
+        max_buf_[i] = 0;
+        for (int j = 1; j < ssize; ++j)
+            max_buf_[i] = max(max_buf_[i], v[i * ssize + j]);
+      }
   }
   sort_by_score.score_ = max_buf_;
   // buffer
