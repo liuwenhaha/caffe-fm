@@ -10,11 +10,10 @@ namespace caffe {
   template <typename Dtype>
   void TopKLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-    channels_ = bottom[0]->shape(1);
-    height_ = bottom[0]->shape(2);
-    width_ = bottom[0]->shape(3);
-    k_ = bottom[2]->shape(0);
-    top[0]->Reshape(k_, channels_, height_, width_);
+    shape_ = bottom[0]->shape();
+    shape_[0] = bottom[2]->shape(0);
+    k_ = shape_[0];
+    top[0]->Reshape(shape_);
     if (top.size() == 2) 
       top[1]->Reshape(bottom[2]->shape(0), 1, 1, 1);
   }

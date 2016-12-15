@@ -58,9 +58,14 @@ void TopKLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
   const int* ids_gpu_data = ids_.gpu_data();
-  const int count = k_ * channels_ * height_ * width_;
+  int count = k_;
+  int item_size = 1;
+  for (int i = 1; i < shape_.size(); ++i)
+    item_size *= shape_[i];
+  count *= item_size;
+
   TopKForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>> (
-      count, bottom_data, ids_gpu_data, channels_ * height_ * width_, top_data);
+      count, bottom_data, ids_gpu_data, item_size, top_data);
   CUDA_POST_KERNEL_CHECK;
   if (top.size() == 2) {
     for (int i = 0; i < top[1]->shape(0); ++i)
@@ -87,9 +92,14 @@ void TopKLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   const Dtype* top_diff = top[0]->gpu_diff();
   const int* ids_gpu_data = ids_.gpu_data();
   Dtype *bottom_diff = bottom[0]->mutable_gpu_diff();
-  const int count = k_ * channels_ * height_ * width_;
-  caffe_gpu_set(bottom[0]->shape(0) * bottom[0]->shape(1) * bottom[0]->shape(2) * bottom[0]->shape(3), Dtype(0.), bottom_diff);
-  TopKBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, top_diff, ids_gpu_data, channels_ * height_ * width_, bottom_diff);
+  int count = k_;
+  int item_size = 1;
+  for (int i = 1; i < shape_.size(); ++i)
+    item_size *= shape_[i];
+  count *= item_size;
+
+  caffe_gpu_set(bottom[0]->shape(0) * item_size, Dtype(0.), bottom_diff);
+  TopKBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, top_diff, ids_gpu_data, item_size, bottom_diff);
   CUDA_POST_KERNEL_CHECK;
 }
 

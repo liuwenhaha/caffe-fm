@@ -47,9 +47,7 @@ class TopKLayer : public Layer<Dtype> {
 
     Blob<int> ids_;
     vector<Dtype> max_buf_;
-    int channels_;
-    int height_;
-    int width_;
+    vector<int> shape_;
     int k_;
 };
 
