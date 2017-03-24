@@ -36,19 +36,20 @@ void NormalizedSigmoidCrossEntropyLossLayer<Dtype>::Forward_cpu(
   // Compute the loss (negative log likelihood)
   const int count = bottom[0]->count();
   const int num = bottom[0]->num();
+  const int unit_count = count / num;
   // Stable version of loss computation from input data
   const Dtype* input_data = bottom[0]->cpu_data();
   const Dtype* target = bottom[1]->cpu_data();
 
-  const int width = bottom[0]->shape(2); const int height = bottom[0]->shape(3);
   Dtype loss = 0;
-  for (int i = 0; i < count; ++i) {
-    // loss -= input_data[i] * (target[i] - (input_data[i] >= 0)) -
-    //     log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0)));
-    loss -= ( input_data[i] * (target[i] - (input_data[i] >= 0)) -
-        log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0))) );
-  }
-  top[0]->mutable_cpu_data()[0] = loss / ( width * height * num );
+  for (int i = 0; i < count; ++i) 
+    if (target[i] != -1) {
+      // loss -= input_data[i] * (target[i] - (input_data[i] >= 0)) -
+      //     log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0)));
+      loss -= ( input_data[i] * (target[i] - (input_data[i] >= 0)) -
+          log(1 + exp(input_data[i] - 2 * input_data[i] * (input_data[i] >= 0))) );
+    }
+  top[0]->mutable_cpu_data()[0] = loss / unit_count;
 }
 
 template <typename Dtype>
@@ -64,13 +65,18 @@ void NormalizedSigmoidCrossEntropyLossLayer<Dtype>::Backward_cpu(
     const Dtype* sigmoid_output_data = sigmoid_output_->cpu_data();
     const Dtype* target     = bottom[1]->cpu_data();
 
-    const int width = bottom[0]->shape(2);const int height = bottom[0]->shape(3);
+    const int unit_count = count / num;
 
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     caffe_sub(count, sigmoid_output_data, target, bottom_diff);
+
+    for (int i = 0; i < count; ++i) {
+      bottom_diff[i] = (target[i] == -1) ? 0 : bottom_diff[i];
+    }
+
     // Scale down gradient
     const Dtype loss_weight = top[0]->cpu_diff()[0];
-    caffe_scal(count, loss_weight / ( num * width * height ), bottom_diff);
+    caffe_scal(count, loss_weight / unit_count, bottom_diff);
   }
 }
 

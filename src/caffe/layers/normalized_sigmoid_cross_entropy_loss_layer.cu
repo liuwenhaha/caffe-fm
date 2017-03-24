@@ -5,6 +5,13 @@
 
 namespace caffe {
 
+template<typename Dtype>
+__global__ void FilterIgnoreLabel(const int n, Dtype* diff, const Dtype* target) {
+  CUDA_KERNEL_LOOP(index, n) {
+    diff[index] = (target[index] == -1) ? 0 : diff[index];
+  }
+}
+
 template <typename Dtype>
 void NormalizedSigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     const vector<Blob<Dtype>*>& top, const vector<bool>& propagate_down,
@@ -14,8 +21,7 @@ void NormalizedSigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     // First, compute the diff
     const int count = bottom[0]->count();
     const int num = bottom[0]->num();
-    const int width = bottom[0]->shape(2); const int height = bottom[0]->shape(3);
-    const int factor = bottom[0]->shape(1) * bottom[0]->shape(2) * bottom[0]->shape(3);
+    const int unit_count = count / num;
 
     const Dtype* sigmoid_output_data = sigmoid_output_->gpu_data();
     const Dtype* target = bottom[1]->gpu_data();
@@ -24,7 +30,9 @@ void NormalizedSigmoidCrossEntropyLossLayer<Dtype>::Backward_gpu(
     caffe_gpu_axpy(count, Dtype(-1), target, bottom_diff);
     // Scale down gradient
     const Dtype loss_weight = top[0]->cpu_diff()[0];
-    caffe_gpu_scal(count, loss_weight / ( num * width * height ), bottom_diff);
+    FilterIgnoreLabel<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+        count, bottom_diff, target);
+    caffe_gpu_scal(count, loss_weight / unit_count, bottom_diff);
   }
 }
 
